@@ -3,9 +3,11 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:crypto/crypto.dart';
+import 'package:twitter_login/twitter_login.dart';
 import '../app.dart';
 
 /// Generates a cryptographically secure random nonce, to be included in a
@@ -100,6 +102,49 @@ class Login extends StatelessWidget {
                 },
                 child: const Text('Apple 認証'),
               ),
+              ElevatedButton(
+                onPressed: () async {
+                  final twitterLogin = TwitterLogin(
+                    // apiKey: "kPA8p7WimMXGOBy4M7vrWU6eH",
+                    apiKey: dotenv.get('TWITTER_API_KEY'),
+                    // apiSecretKey:
+                    //     "risBmA4tyNawmHOqOLpPfePGtSNuCNLkEkC3FJ7UtYaXjHiab7",
+                    apiSecretKey: dotenv.get('TWITTER_API_SECRET'),
+                    redirectURI: "twittersdk://",
+                  );
+                  final authResult = await twitterLogin.login();
+                  switch (authResult.status) {
+                    case TwitterLoginStatus.loggedIn:
+                      print('logged in');
+                      final AuthCredential twitterAuthCredential =
+                          TwitterAuthProvider.credential(
+                              accessToken: authResult.authToken!,
+                              secret: authResult.authTokenSecret!);
+                      try {
+                        UserCredential result = await FirebaseAuth.instance
+                            .signInWithCredential(twitterAuthCredential);
+                        User? user = result.user;
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => App(userId: user!.uid),
+                            ));
+                      } catch (e) {
+                        print(e);
+                      }
+                      break;
+                    case TwitterLoginStatus.cancelledByUser:
+                      print('cancelledByUser');
+                      break;
+                    case TwitterLoginStatus.error:
+                      print('error');
+                      break;
+                    default:
+                      return null;
+                  }
+                },
+                child: const Text('Twitter 認証'),
+              )
             ],
           ),
         ),
